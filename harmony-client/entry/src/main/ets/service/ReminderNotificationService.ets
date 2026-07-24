@@ -40,8 +40,7 @@ export function classifyNotificationErrorCode(code: number): ReminderNotificatio
   return ReminderNotificationStatus.FAILED;
 }
 
-function buildFailureResult(error: BusinessError): ReminderNotificationResult {
-  const code: number = typeof error.code === 'number' ? error.code : 0;
+function buildFailureResult(code: number): ReminderNotificationResult {
   const status: ReminderNotificationStatus = classifyNotificationErrorCode(code);
 
   if (status === ReminderNotificationStatus.PERMISSION_DENIED) {
@@ -100,6 +99,11 @@ export async function publishReminderNotification(
       message: '页面内提醒已生成，系统摘要通知已发布。'
     };
   } catch (error) {
-    return buildFailureResult(error as BusinessError);
+    if (error === null || error === undefined) {
+      return buildFailureResult(0);
+    }
+    const businessError: BusinessError = error as BusinessError;
+    const code: number = typeof businessError.code === 'number' ? businessError.code : 0;
+    return buildFailureResult(code);
   }
 }

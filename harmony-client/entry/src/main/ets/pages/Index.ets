@@ -27,6 +27,7 @@ struct Index {
   @State notificationPublishing: boolean = false;
   @State notificationStatus: string = 'idle';
   @State notificationFeedback: string = '';
+  private notificationRequestId: number = 0;
 
   private startAnalyze(): void {
     this.result = buildMockAnalyzeResult(this.jobTitle, this.candidateSummary);
@@ -40,6 +41,7 @@ struct Index {
   }
 
   private resetReminderState(): void {
+    this.notificationRequestId += 1;
     this.reminderGenerated = false;
     this.notificationPublishing = false;
     this.notificationStatus = 'idle';
@@ -55,24 +57,34 @@ struct Index {
     this.notificationPublishing = true;
     this.notificationStatus = 'publishing';
     this.notificationFeedback = '页面内提醒已生成，正在尝试发布系统通知。';
+    const requestId: number = this.notificationRequestId + 1;
+    this.notificationRequestId = requestId;
 
     try {
       const hostContext = this.getUIContext().getHostContext();
       if (hostContext === undefined) {
-        this.notificationStatus = ReminderNotificationStatus.UNSUPPORTED;
-        this.notificationFeedback = '当前运行环境不提供通知上下文，页面内提醒仍可正常使用。';
+        if (requestId === this.notificationRequestId) {
+          this.notificationStatus = ReminderNotificationStatus.UNSUPPORTED;
+          this.notificationFeedback = '当前运行环境不提供通知上下文，页面内提醒仍可正常使用。';
+        }
         return;
       }
       const context: common.UIAbilityContext = hostContext as common.UIAbilityContext;
       const notificationResult: ReminderNotificationResult =
         await publishReminderNotification(context, this.result.reminders);
-      this.notificationStatus = notificationResult.status;
-      this.notificationFeedback = notificationResult.message;
+      if (requestId === this.notificationRequestId) {
+        this.notificationStatus = notificationResult.status;
+        this.notificationFeedback = notificationResult.message;
+      }
     } catch (error) {
-      this.notificationStatus = ReminderNotificationStatus.FAILED;
-      this.notificationFeedback = '系统通知发布失败，可稍后重试；页面内提醒不受影响。';
+      if (requestId === this.notificationRequestId) {
+        this.notificationStatus = ReminderNotificationStatus.FAILED;
+        this.notificationFeedback = '系统通知发布失败，可稍后重试；页面内提醒不受影响。';
+      }
     } finally {
-      this.notificationPublishing = false;
+      if (requestId === this.notificationRequestId) {
+        this.notificationPublishing = false;
+      }
     }
   }
 
@@ -398,6 +410,7 @@ struct Index {
                 .fontSize(15)
                 .backgroundColor('#6B7280')
                 .onClick(() => {
+                  this.resetReminderState();
                   this.currentStep = 'form';
                 })
 

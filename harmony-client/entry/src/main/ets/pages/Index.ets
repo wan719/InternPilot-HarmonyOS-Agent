@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit';
 import { HOME_CAPABILITIES, HOME_SUBTITLE, HOME_TITLE } from '../model/HomeContent';
 import {
   AnalyzeAction,
@@ -7,6 +8,11 @@ import {
   DEFAULT_CANDIDATE_SUMMARY,
   DEFAULT_JOB_DESCRIPTION
 } from '../model/AnalyzeMock';
+import {
+  publishReminderNotification,
+  ReminderNotificationResult,
+  ReminderNotificationStatus
+} from '../service/ReminderNotificationService';
 
 @Entry
 @Component
@@ -18,16 +24,56 @@ struct Index {
   @State candidateSummary: string = DEFAULT_CANDIDATE_SUMMARY;
   @State result: AnalyzeResult = buildMockAnalyzeResult('鸿蒙应用开发实习生', DEFAULT_CANDIDATE_SUMMARY);
   @State reminderGenerated: boolean = false;
+  @State notificationPublishing: boolean = false;
+  @State notificationStatus: string = 'idle';
+  @State notificationFeedback: string = '';
 
   private startAnalyze(): void {
     this.result = buildMockAnalyzeResult(this.jobTitle, this.candidateSummary);
-    this.reminderGenerated = false;
+    this.resetReminderState();
     this.currentStep = 'result';
   }
 
   private resetDemo(): void {
     this.currentStep = 'home';
+    this.resetReminderState();
+  }
+
+  private resetReminderState(): void {
     this.reminderGenerated = false;
+    this.notificationPublishing = false;
+    this.notificationStatus = 'idle';
+    this.notificationFeedback = '';
+  }
+
+  private async generateReminder(): Promise<void> {
+    if (this.notificationPublishing) {
+      return;
+    }
+
+    this.reminderGenerated = true;
+    this.notificationPublishing = true;
+    this.notificationStatus = 'publishing';
+    this.notificationFeedback = '页面内提醒已生成，正在尝试发布系统通知。';
+
+    try {
+      const hostContext = this.getUIContext().getHostContext();
+      if (hostContext === undefined) {
+        this.notificationStatus = ReminderNotificationStatus.UNSUPPORTED;
+        this.notificationFeedback = '当前运行环境不提供通知上下文，页面内提醒仍可正常使用。';
+        return;
+      }
+      const context: common.UIAbilityContext = hostContext as common.UIAbilityContext;
+      const notificationResult: ReminderNotificationResult =
+        await publishReminderNotification(context, this.result.reminders);
+      this.notificationStatus = notificationResult.status;
+      this.notificationFeedback = notificationResult.message;
+    } catch (error) {
+      this.notificationStatus = ReminderNotificationStatus.FAILED;
+      this.notificationFeedback = '系统通知发布失败，可稍后重试；页面内提醒不受影响。';
+    } finally {
+      this.notificationPublishing = false;
+    }
   }
 
   build() {
@@ -284,14 +330,28 @@ struct Index {
             .borderRadius(12)
             .backgroundColor('#EEF2FF')
 
-            Button(this.reminderGenerated ? '提醒已生成' : '生成页面内提醒')
+            Button(
+              this.notificationPublishing
+                ? '正在发布系统通知'
+                : this.notificationStatus === ReminderNotificationStatus.SUCCESS
+                  ? '系统通知已发布'
+                  : this.reminderGenerated
+                    ? '重试系统通知'
+                    : '生成求职提醒'
+            )
               .width('100%')
               .height(46)
               .fontSize(16)
               .fontWeight(FontWeight.Medium)
-              .backgroundColor(this.reminderGenerated ? '#16A34A' : '#2563EB')
+              .backgroundColor(
+                this.notificationStatus === ReminderNotificationStatus.SUCCESS ? '#16A34A' : '#2563EB'
+              )
+              .enabled(
+                !this.notificationPublishing &&
+                  this.notificationStatus !== ReminderNotificationStatus.SUCCESS
+              )
               .onClick(() => {
-                this.reminderGenerated = true;
+                this.generateReminder();
               })
 
             if (this.reminderGenerated) {
@@ -301,17 +361,34 @@ struct Index {
                   .fontWeight(FontWeight.Bold)
                   .fontColor('#111827')
 
-                ForEach(this.result.reminders, (reminder: AnalyzeReminder) => {
-                  Text(`⏰ ${reminder.time}：${reminder.title}`)
+                if (this.result.reminders.length > 0) {
+                  ForEach(this.result.reminders, (reminder: AnalyzeReminder) => {
+                    Text(`⏰ ${reminder.time}：${reminder.title}`)
+                      .fontSize(14)
+                      .fontColor('#166534')
+                      .lineHeight(22)
+                  }, (reminder: AnalyzeReminder) => reminder.title)
+                } else {
+                  Text('今日求职任务已生成，请按今日任务逐项执行。')
                     .fontSize(14)
                     .fontColor('#166534')
                     .lineHeight(22)
-                }, (reminder: AnalyzeReminder) => reminder.title)
+                }
               }
               .width('100%')
               .padding(14)
               .borderRadius(12)
               .backgroundColor('#ECFDF3')
+            }
+
+            if (this.notificationFeedback.length > 0) {
+              Text(this.notificationFeedback)
+                .width('100%')
+                .fontSize(13)
+                .fontColor(
+                  this.notificationStatus === ReminderNotificationStatus.SUCCESS ? '#166534' : '#92400E'
+                )
+                .lineHeight(20)
             }
 
             Row({ space: 12 }) {

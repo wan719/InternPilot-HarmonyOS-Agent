@@ -2,9 +2,10 @@ import { common } from '@kit.AbilityKit';
 import { HOME_CAPABILITIES, HOME_SUBTITLE, HOME_TITLE } from '../model/HomeContent';
 import {
   AnalyzeAction,
+  AnalyzeRequest,
   AnalyzeReminder,
   AnalyzeResult,
-  buildMockAnalyzeResult,
+  buildRuleBasedAnalyzeResult,
   DEFAULT_CANDIDATE_SUMMARY,
   DEFAULT_JOB_DESCRIPTION
 } from '../model/AnalyzeMock';
@@ -22,7 +23,12 @@ struct Index {
   @State companyName: string = '示例科技公司';
   @State jobDescription: string = DEFAULT_JOB_DESCRIPTION;
   @State candidateSummary: string = DEFAULT_CANDIDATE_SUMMARY;
-  @State result: AnalyzeResult = buildMockAnalyzeResult('鸿蒙应用开发实习生', DEFAULT_CANDIDATE_SUMMARY);
+  @State result: AnalyzeResult = buildRuleBasedAnalyzeResult({
+    jobTitle: '鸿蒙应用开发实习生',
+    companyName: '示例科技公司',
+    jobDescription: DEFAULT_JOB_DESCRIPTION,
+    candidateSummary: DEFAULT_CANDIDATE_SUMMARY
+  });
   @State reminderGenerated: boolean = false;
   @State notificationPublishing: boolean = false;
   @State notificationStatus: string = 'idle';
@@ -30,7 +36,13 @@ struct Index {
   private notificationRequestId: number = 0;
 
   private startAnalyze(): void {
-    this.result = buildMockAnalyzeResult(this.jobTitle, this.candidateSummary);
+    const request: AnalyzeRequest = {
+      jobTitle: this.jobTitle,
+      companyName: this.companyName,
+      jobDescription: this.jobDescription,
+      candidateSummary: this.candidateSummary
+    };
+    this.result = buildRuleBasedAnalyzeResult(request);
     this.resetReminderState();
     this.currentStep = 'result';
   }
@@ -103,7 +115,7 @@ struct Index {
             .fontColor('#4B5563')
             .textAlign(TextAlign.Center)
 
-          Text('C4 初赛最小 Demo：输入 JD → Mock 分析 → 生成提醒')
+          Text('C4 初赛最小 Demo：输入 JD → 本地规则分析 → 生成提醒')
             .fontSize(13)
             .fontColor('#2563EB')
             .textAlign(TextAlign.Center)
@@ -150,7 +162,7 @@ struct Index {
               .fontWeight(FontWeight.Bold)
               .fontColor('#111827')
 
-            Text('先不接真实后端，不做完整登录注册，只用本地 mock JSON 证明作品闭环。DevEco 能运行后，再接轻接口。')
+            Text('先不接真实后端，不做完整登录注册，使用本地规则分析和 fallback 证明作品闭环。')
               .fontSize(14)
               .fontColor('#4B5563')
               .lineHeight(22)
@@ -216,7 +228,7 @@ struct Index {
                   this.currentStep = 'home';
                 })
 
-              Button('生成 Mock 分析')
+              Button('生成规则分析')
                 .width('60%')
                 .height(46)
                 .fontSize(16)
@@ -255,6 +267,11 @@ struct Index {
                 .fontColor('#2563EB')
             }
             .width('100%')
+
+            Text('分析模式：本地规则化演示')
+              .width('100%')
+              .fontSize(13)
+              .fontColor('#2563EB')
 
             Text(this.result.summary)
               .fontSize(15)

@@ -33,10 +33,11 @@ export default function localUnitTest() {
     it('homeContentMatchesInternPilotMvp', 0, () => {
       expect(HOME_TITLE).assertEqual('InternPilot 鸿蒙求职 Agent');
       expect(HOME_SUBTITLE).assertEqual('面向大学生实习求职的 AI 助理');
-      expect(HOME_CAPABILITIES.length).assertEqual(3);
+      expect(HOME_CAPABILITIES.length).assertEqual(4);
       expect(HOME_CAPABILITIES[0]).assertEqual('岗位 JD 分析');
       expect(HOME_CAPABILITIES[1]).assertEqual('能力缺口识别');
       expect(HOME_CAPABILITIES[2]).assertEqual('今日求职任务');
+      expect(HOME_CAPABILITIES[3]).assertEqual('页面内提醒兜底');
     });
   });
 }

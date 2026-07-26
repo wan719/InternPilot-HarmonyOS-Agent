@@ -86,7 +86,8 @@ InternPilot-HarmonyOS-Agent
 确认当前分支为：
 
 ```bash
-git checkout feature/rule-based-analysis-enhancement
+git checkout main
+git pull origin main
 ```
 
 并重新 Sync / Rebuild。
